@@ -1,0 +1,143 @@
+---
+title: "R Notebook"
+output: 
+---
+
+```{r}
+library(lubridate)
+library(ggplot2)
+```
+
+```{r}
+df_2013_2018 = read.csv("data/gun_violence_2013-2018.csv")
+df_2018 = read.csv("data/gun_violence_2018.csv")
+```
+
+```{r}
+# choose columns needed to create training data
+cols = c("date", "state", "n_killed", "n_injured")
+df_2013_2018 = df_2013_2018[, cols]
+df_2018 = df_2018[, cols]
+
+# remove rows where dates are before 2014 and after 2017
+df_2013_2018 = df_2013_2018[df_2013_2018[["date"]] >= "2014-01-01", ]
+df_2013_2018 = df_2013_2018[df_2013_2018[["date"]] < "2018-01-01", ]
+df_2013_2018$date = as.Date(df_2013_2018$date , format = "%Y-%m-%d")
+df_2018$date = as.Date(df_2018$date, format="%B %d, %Y")
+
+dataset = rbind(df_2013_2018, df_2018)
+
+# set state as a factor
+dataset$state = factor(dataset$state)
+```
+
+```{r}
+# get sum of each year and each month
+sum_killed_year = tapply(dataset$n_killed, format(dataset$date, "%Y"), FUN=sum)
+sum_killed_months = tapply(dataset$n_killed, format(dataset$date, "%Y-%m"), FUN=sum)
+sum_injured_year = tapply(dataset$n_injured, format(dataset$date, "%Y"), FUN=sum)
+sum_injured_months = tapply(dataset$n_injured, format(dataset$date, "%Y-%m"), FUN=sum)
+
+months = names(sum_killed_months)
+```
+
+
+```{r}
+# obtain total_killed_months vector
+# this vector contains the total number of killed for current + previous months
+total_killed_months = numeric(length=length(months))
+names(total_killed_months) = months 
+
+total = 0
+for (month in months) {
+  total = total + sum_killed_months[month]
+  total_killed_months[month] = total
+}
+
+
+# obtain total_injured_months vector
+# this vector contains the total number of injured for current and previous months
+total_injured_months = numeric(length=length(months))
+names(total_injured_months) = months 
+
+total = 0
+for (month in months) {
+  total = total + sum_injured_months[month]
+  total_injured_months[month] = total
+}
+```
+
+
+```{r}
+# create new dateframe for training of a model
+df = data.frame(date=months)
+df$id = 1:length(months)
+df$n_killed = sum_killed_months
+df$n_injured = sum_injured_months
+df$total_killed = total_killed_months
+df$total_injured = total_injured_months
+```
+
+```{r}
+# create n_killed_last_month column
+n_killed_last_year = vector(mode="numeric", length=length(months))
+for (i in 13:length(months)) {
+  n_killed_last_year[i] <- df$n_killed[i-12]
+}
+df$n_killed_last_year = n_killed_last_year
+
+# create n_killed_last_month column
+n_killed_last_month = vector(mode="numeric", length=length(months)) 
+for (i in 2:length(months)) {
+  n_killed_last_month[i] <- df$n_killed[i-1]
+}
+df$n_killed_last_month = n_killed_last_month
+```
+
+```{r}
+df
+```
+
+
+```{r}
+# create test dataframe from 2018 of df
+test_df = df[df[["date"]] >= "2018-01", ]
+train_df = df[df[["date"]] < "2018-01",]
+```
+
+```{r}
+# write train and test data into csvs
+write.csv(df, "data/preprocessed_data.csv", row.names=FALSE)
+write.csv(train_df,"data/train.csv", row.names=FALSE)
+write.csv(test_df, "data/test.csv", row.names=FALSE)
+```
+
+```{r}
+# remove date column
+train = train_df[colnames(train_df) != "date"]
+test = test_df[colnames(test_df) != "date"]
+
+# create linear regression model
+model = glm(n_killed ~ ., data=train)
+y_pred = predict(model, test)
+
+correlation_accuracy = cor(test$n_killed, y_pred); correlation_accuracy
+```
+
+
+
+```{r}
+# plot forecast vs actual values
+plot(x=df$id,y=df$n_killed,type="l",col="black", xlab="Time", ylab="Gun-Related Deaths")
+lines(x=names(y_pred),y=y_pred,col="red")
+
+# dip in 2018 due to new gun laws found at https://ballotpedia.org/Federal_policy_on_laws_governing_guns_and_firearms,_2017-2020
+```
+
+
+
+
+
+
+
+
