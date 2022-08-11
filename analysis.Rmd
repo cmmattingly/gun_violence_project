@@ -48,7 +48,11 @@ plot(timeseriesforecast)
 ```{r}
 holtwinters_forecast = forecast:::forecast.HoltWinters(timeseriesforecast, h=12); holtwinters_forecast
 plot(holtwinters_forecast)
+
+#convert to dataframe to get Point Forecast values (the blue line on graph)
 forecast_df = as.data.frame(holtwinters_forecast)
+
+# calculate correlation
 correlation_accuracy= cor(test_df$n_killed, forecast_df$`Point Forecast`); correlation_accuracy
 ```
 
