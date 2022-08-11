@@ -33,3 +33,19 @@ lines(x=49:60,y=y_pred,col="red")
 
 # dip in 2018 due to new gun laws found at https://ballotpedia.org/Federal_policy_on_laws_governing_guns_and_firearms,_2017-2020
 ```
+
+```{r}
+timeseries = ts(df$n_killed, frequency=12, start=c(2014, 1)); timeseries
+```
+
+```{r}
+# gamma is for seasonal smoothing, therefore we need it since our data is seasonal
+timeseriesforecast = HoltWinters(timeseries, beta=FALSE, gamma=TRUE)
+plot(timeseriesforecast)
+```
+
+```{r}
+timeseriesforecast_2 = forecast:::forecast.HoltWinters(timeseriesforecast, h=12); timeseriesforecast_2
+plot(timeseriesforecast_2)
+```
+
