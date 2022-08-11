@@ -46,14 +46,19 @@ plot(timeseriesforecast)
 ```
 
 ```{r}
+library(Metrics)
+
+# forecast next 12 months (h=12)
 holtwinters_forecast = forecast:::forecast.HoltWinters(timeseriesforecast, h=12); holtwinters_forecast
 plot(holtwinters_forecast)
 
 #convert to dataframe to get Point Forecast values (the blue line on graph)
 forecast_df = as.data.frame(holtwinters_forecast)
-
+y_pred = forecast_df$`Point Forecast`
 # calculate correlation
-correlation_accuracy= cor(test_df$n_killed, forecast_df$`Point Forecast`); correlation_accuracy
+correlation_accuracy= cor(test_df$n_killed, y_pred); correlation_accuracy # relatively nice percentage 
+mape = mean(abs((y_pred - test_df$n_killed))/test_df$n_killed); mape # very small 
+rmse = rmse(test_df$n_killed, y_pred); rmse # small relative to number of deaths in a year
 ```
 
 
