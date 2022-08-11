@@ -35,7 +35,8 @@ lines(x=49:60,y=y_pred,col="red")
 ```
 
 ```{r}
-timeseries = ts(df$n_killed, frequency=12, start=c(2014, 1)); timeseries
+timeseries = ts(train_df$n_gender_killed, frequency=12, start=c(2014, 1)); timeseries
+plot(decompose(timeseries))
 ```
 
 ```{r}
@@ -45,7 +46,11 @@ plot(timeseriesforecast)
 ```
 
 ```{r}
-timeseriesforecast_2 = forecast:::forecast.HoltWinters(timeseriesforecast, h=12); timeseriesforecast_2
-plot(timeseriesforecast_2)
+holtwinters_forecast = forecast:::forecast.HoltWinters(timeseriesforecast, h=12); holtwinters_forecast
+plot(holtwinters_forecast)
+forecast_df = as.data.frame(holtwinters_forecast)
+correlation_accuracy= cor(test_df$n_killed, forecast_df$`Point Forecast`); correlation_accuracy
 ```
+
+
 
