@@ -7,5 +7,5 @@ This project revolves around scraping gun-related violence data from https://www
 
 The notebook is used to perform the scraping from https://www.gunviolencearchive.org/. 
 
-# R Notebook 
+# R Notebooks
 The notebooks are used for preprocessing the scraped data and performing time series analysis.
