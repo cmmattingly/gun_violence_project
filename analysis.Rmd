@@ -6,60 +6,92 @@ output:
 ```{r}
 library(lubridate)
 library(ggplot2)
+library(forecast)
+library(Metrics)
 ```
 
 ```{r}
+# read data 
 df = read.csv("data/preprocessed_data.csv")
 train_df = read.csv("data/train.csv")
 test_df = read.csv("data/test.csv")
 ```
 
 ```{r}
-# remove date column
-train = train_df[colnames(train_df) != "date"]
-test = test_df[colnames(test_df) != "date"]
-
-# create linear regression model
-model = glm(n_killed ~ ., data=train)
-y_pred = predict(model, test)
-
-correlation_accuracy = cor(test$n_killed, y_pred); correlation_accuracy
-```
-
-```{r}
-# plot forecast vs actual values
-plot(x=df$id,y=df$n_killed,type="l",col="black", xlab="Time", ylab="Gun-Related Deaths")
-lines(x=49:60,y=y_pred,col="red")
-
-# dip in 2018 due to new gun laws found at https://ballotpedia.org/Federal_policy_on_laws_governing_guns_and_firearms,_2017-2020
-```
-
-```{r}
-timeseries = ts(train_df$n_gender_killed, frequency=12, start=c(2014, 1)); timeseries
+# create time series
+timeseries = ts(train_df$n_killed, frequency=12, start=c(2014, 1)); timeseries
 plot(decompose(timeseries))
 ```
 
 ```{r}
 # gamma is for seasonal smoothing, therefore we need it since our data is seasonal
-timeseriesforecast = HoltWinters(timeseries, beta=FALSE, gamma=TRUE)
-plot(timeseriesforecast)
+# additive since the seasonal trend is recurring
+holtwinters = HoltWinters(timeseries, beta=FALSE, gamma=0.2, seasonal = "additive")
+plot(holtwinters)
 ```
 
 ```{r}
-library(Metrics)
-
-# forecast next 12 months (h=12)
-holtwinters_forecast = forecast:::forecast.HoltWinters(timeseriesforecast, h=12); holtwinters_forecast
+# forecast next 12 months (year 2018)
+holtwinters_forecast = forecast:::forecast.HoltWinters(holtwinters, h=12); holtwinters_forecast
 plot(holtwinters_forecast)
 
-#convert to dataframe to get Point Forecast values (the blue line on graph)
+# convert to dataframe to get Point Forecast values (the blue line on graph)
 forecast_df = as.data.frame(holtwinters_forecast)
 y_pred = forecast_df$`Point Forecast`
-# calculate correlation
-correlation_accuracy= cor(test_df$n_killed, y_pred); correlation_accuracy # relatively nice percentage 
-mape = mean(abs((y_pred - test_df$n_killed))/test_df$n_killed); mape # very small 
-rmse = rmse(test_df$n_killed, y_pred); rmse # small relative to number of deaths in a year
+
+# calculate correlation, MAPE, and RMSE
+correlation_accuracy= cor(test_df$n_killed, y_pred); correlation_accuracy 
+mape = mean(abs((y_pred - test_df$n_killed))/test_df$n_killed); mape 
+rmse = rmse(test_df$n_killed, y_pred); rmse 
+
+hist(holtwinters_forecast$residuals, xlab="Residuals", main="Histogram for HoltWinters Residuals")
+
+# create dataframe with train and testing combined
+plot_df = rbind(train_df, test_df)
+plot(x=plot_df$id,y=plot_df$n_killed,type="l",col="black", xlab="Time", ylab="Gun-Related Deaths")
+lines(x=49:60,y=y_pred,col="red")
+
+# dip in 2018 deaths due to new gun laws found at https://ballotpedia.org/Federal_policy_on_laws_governing_guns_and_firearms,_2017-2020
+# this causes the model to have lower the usual correlation when testing on the year 2018 - basically the model expected the same trend, but there was an unexpected dip
 ```
+
+```{r}
+# test seasonal naive model
+snaive_forecast = snaive(timeseries, h=12)
+plot(snaive_forecast)
+
+# convert to dataframe to get Point Forecast values (the blue line on graph)
+forecast_df = as.data.frame(snaive_forecast)
+y_pred = forecast_df$`Point Forecast`
+
+# calculate correlation, MAPE, and RMSE
+correlation_accuracy= cor(test_df$n_killed, y_pred); correlation_accuracy 
+mape = mean(abs((y_pred - test_df$n_killed))/test_df$n_killed); mape 
+rmse = rmse(test_df$n_killed, y_pred); rmse 
+
+hist(snaive_forecast$residuals, xlab="Residuals", main="Histogram for Seasonal Naive Residuals")
+plot(x=plot_df$id,y=plot_df$n_killed,type="l",col="black", xlab="Time", ylab="Gun-Related Deaths")
+lines(x=49:60,y=y_pred,col="red")
+```
+
+```{r}
+# create timeseries for [2014, 2021]
+timeseries_2014_2021 = ts(df$n_killed, frequency=12, start=c(2014, 1)); timeseries_2014_2021
+plot(decompose(timeseries_2014_2021))
+
+# create new Holt-Winters model using data from 2014-2021 (more data)
+holtwinters_model = HoltWinters(timeseries_2014_2021, beta=FALSE, gamma=0.8, seasonal = "additive")
+plot(holtwinters_model)
+
+# forecast next 12 months (2022+ forecast)
+holtwinters_2022 = forecast:::forecast.HoltWinters(holtwinters_model, h=12); holtwinters_2022
+plot(holtwinters_2022)
+
+# convert to dataframe to get Point Forecast values (the blue line on graph)
+forecast_df = as.data.frame(holtwinters_forecast)
+```
+
+
 
 
 
